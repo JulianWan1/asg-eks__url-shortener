@@ -1,0 +1,38 @@
+# Local development stack. `docker compose up --build` gives you a running app
+# + Postgres with zero local install — the fastest way to see the app work
+# before any AWS/Terraform exists.
+#
+# The app waits for the DB (see src/db.ts waitForDb) and self-migrates on boot,
+# so there are no manual setup steps: bring it up, hit the endpoints.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: shortener
+      POSTGRES_PASSWORD: localdev
+      POSTGRES_DB: shortener
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shortener -d shortener"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: "3000"
+      DATABASE_URL: "postgres://shortener:localdev@db:5432/shortener"
+      LOG_LEVEL: "debug"
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
